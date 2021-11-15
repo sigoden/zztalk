@@ -26,14 +26,14 @@ export default function Chat({ room }) {
     const socket = io("/", {
       transports: ["websocket", "polling"],
     });
+    setSocket(socket);
     socket.on("connect", () => {
-      setSocket(socket);
       socket.emit("enter", { room, sender: user }, (messages) => {
         setMessages(messages.map(santizeMsg));
       });
-      socket.on("message", (message) => {
-        setMessages((v) => [...v, santizeMsg(message)]);
-      });
+    });
+    socket.on("message", (message) => {
+      setMessages((v) => [...v, santizeMsg(message)]);
     });
     return () => socket.disconnect();
   }, [room]);
