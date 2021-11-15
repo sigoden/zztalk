@@ -122,7 +122,7 @@ function genAvatar(sender, size = 200) {
 }
 
 function getMsgDate(msg) {
-  const date = new Date(msg.sentAt);
+  const date = new Date(msg.sentAt * 1000);
   let hh = date.getHours();
   let mm = date.getMinutes();
   if (hh < 10) hh = "0" + hh;

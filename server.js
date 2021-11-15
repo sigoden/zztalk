@@ -10,7 +10,7 @@ const serve = require("koa-static");
 const next = require("next");
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const DURATION = (parseInt(process.env.DURATION, 10) || 30 * 60) * 1000;
+const DURATION = parseInt(process.env.DURATION, 10) || 30 * 60;
 const UPLOADS_DIR = path.resolve(__dirname, "uploads");
 
 const dev = process.env.NODE_ENV !== "production";
@@ -57,7 +57,7 @@ async function main() {
   io.on("connection", (socket) => {
     const boardcast = (msg) => {
       const { room } = msg;
-      const now = Date.now();
+      const now = currentTime();
       if (!room || !chatrooms[room]) return;
       let chatroom = chatrooms[room];
       let { msgId } = chatroom;
@@ -73,15 +73,14 @@ async function main() {
       if (!room) return;
       if (!socket.rooms.has(room)) socket.join(room);
       let chatroom = chatrooms[room];
+      const now = currentTime();
       if (!chatrooms[room]) {
         chatroom = chatrooms[room] = {
           msgId: 0,
           msgs: [],
-          createdAt: Date.now(),
         };
       }
       socket.sender = sender;
-      const now = Date.now();
       chatroom.updateAt = now;
       const msgs = chatroom.msgs.filter((msg) => now - msg.sentAt < DURATION);
       chatroom.msgs = msgs;
@@ -102,7 +101,7 @@ async function main() {
 }
 
 async function purgeOutdated() {
-  const now = Date.now();
+  const now = currentTime();
   const names = Object.keys(chatrooms);
   for (const name of names) {
     const chatroom = chatrooms[name];
@@ -139,4 +138,8 @@ async function ensurceDir(dir) {
   } catch (err) {
     await fs.promises.mkdir(dir);
   }
+}
+
+function currentTime() {
+  return Math.floor(Date.now() / 1000);
 }
