@@ -1,6 +1,6 @@
 import { createRef, useEffect, useState } from "react";
 import * as md5 from "md5";
-import { generateFromString as genAvatar } from "generate-avatar";
+import * as jdenticon from "jdenticon";
 import { Box } from "@mui/system";
 import { io } from "socket.io-client";
 import {
@@ -19,7 +19,9 @@ export default function Chat({ room }) {
   const [messages, setMessages] = useState([]);
   const fileRef = createRef();
   useEffect(() => {
-    const socket = io("/");
+    const socket = io("/", {
+      transports: ["websocket", "polling"],
+    });
     socket.on("connect", () => {
       setSocket(socket);
       socket.emit("enter", { room, sender: user }, (messages) => {
@@ -57,10 +59,7 @@ export default function Chat({ room }) {
           <MessageList>
             {messages.map((msg) => (
               <Message key={msg.id} model={msg}>
-                <Avatar
-                  src={`data:image/svg+xml;utf8,${genAvatar(msg.sender)}`}
-                  name=""
-                />
+                <Avatar src={genAvatar(msg.sender)} />
               </Message>
             ))}
           </MessageList>
@@ -95,4 +94,7 @@ function santizeMsg(msg) {
     direction,
     position: "single",
   };
+}
+function genAvatar(sender, size = 200) {
+  return "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(sender, size));
 }

@@ -15,7 +15,7 @@
     "@koa/multer": "^3.0.0",
     "@koa/router": "^10.1.1",
     "@mui/system": "^5.1.0",
-    "generate-avatar": "^1.4.10",
+    "jdenticon": "^3.1.1",
     "koa": "^2.13.4",
     "koa-mount": "^4.0.0",
     "koa-static": "^5.0.0",
