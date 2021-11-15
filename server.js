@@ -55,6 +55,20 @@ async function main() {
   const io = new SocketIO.Server(server);
 
   io.on("connection", (socket) => {
+    const boardcast = (msg) => {
+      const { room } = msg;
+      const now = Date.now();
+      if (!room || !chatrooms[room]) return;
+      let chatroom = chatrooms[room];
+      let { msgId } = chatroom;
+      msgId += 1;
+      msg.sender = socket.sender;
+      msg.sentAt = now;
+      msg.id = chatroom.msgId = msgId;
+      chatroom.updateAt = now;
+      chatroom.msgs.push(msg);
+      io.to(room).emit("message", msg);
+    };
     socket.on("enter", ({ room, sender }, cb) => {
       if (!room) return;
       if (!socket.rooms.has(room)) socket.join(room);
@@ -69,25 +83,15 @@ async function main() {
       socket.sender = sender;
       const now = Date.now();
       chatroom.updateAt = now;
-      let idx = chatroom.msgs.findIndex((msg) => now - msg.sentAt < DURATION);
-      if (idx == -1) idx = 0;
-      chatroom.msgs = chatroom.msgs.slice(idx);
-      return cb(chatroom.msgs);
+      const msgs = chatroom.msgs.filter((msg) => now - msg.sentAt < DURATION);
+      chatroom.msgs = msgs;
+      const senders = new Set(msgs.map((msg) => msg.sender));
+      if (!senders.has(sender)) {
+        boardcast({ room, message: "✨ enter room" });
+      }
+      return cb(msgs);
     });
-    socket.on("message", (msg) => {
-      const { room } = msg;
-      const now = Date.now();
-      if (!room || !chatrooms[room]) return;
-      let chatroom = chatrooms[room];
-      let { msgId } = chatroom;
-      msgId += 1;
-      msg.sender = socket.sender;
-      msg.sentAt = now;
-      msg.id = chatroom.msgId = msgId;
-      chatroom.updateAt = now;
-      chatroom.msgs.push(msg);
-      io.to(room).emit("message", msg);
-    });
+    socket.on("message", (msg) => boardcast(msg));
   });
 
   server.listen(PORT, () => {

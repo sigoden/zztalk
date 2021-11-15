@@ -15,7 +15,7 @@ import {
   MessageInput,
 } from "@chatscope/chat-ui-kit-react";
 
-const user = md5(navigator.userAgent);
+const user = md5(navigator.userAgent).slice(0, 6);
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
