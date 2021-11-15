@@ -1,0 +1,12 @@
+{
+  "name": "selfchat",
+  "keywords": ["nextjs", "chat", "selfchat"],
+  "description": "Chat with yourself, share text or files with multiple devices",
+  "website": "https://selfchat.herokuapp.com",
+  "repository": "https://github.com/sigoden/selfchat",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
