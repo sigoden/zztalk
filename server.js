@@ -10,7 +10,7 @@ const serve = require("koa-static");
 const next = require("next");
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const TIMEOUT = parseInt(process.env.TIMEOUT, 10) || 30 * 60;
+const DURATION = (parseInt(process.env.DURATION, 10) || 30 * 60) * 1000;
 const UPLOADS_DIR = path.resolve(__dirname, "uploads");
 
 const dev = process.env.NODE_ENV !== "production";
@@ -69,7 +69,7 @@ async function main() {
       socket.sender = sender;
       const now = Date.now();
       chatroom.updateAt = now;
-      let idx = chatroom.msgs.findIndex((msg) => now - msg.sentAt < TIMEOUT);
+      let idx = chatroom.msgs.findIndex((msg) => now - msg.sentAt < DURATION);
       if (idx == -1) idx = 0;
       chatroom.msgs = chatroom.msgs.slice(idx);
       return cb(chatroom.msgs);
@@ -94,7 +94,7 @@ async function main() {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
 
-  setImmediate(purgeOutdated, TIMEOUT / 10);
+  setImmediate(purgeOutdated, DURATION / 10);
 }
 
 async function purgeOutdated() {
@@ -102,7 +102,7 @@ async function purgeOutdated() {
   const names = Object.keys(chatrooms);
   for (const name of names) {
     const chatroom = chatrooms[name];
-    if (now - chatroom.updateAt > TIMEOUT) {
+    if (now - chatroom.updateAt > DURATION) {
       await fs.promises.rm(path.resolve(UPLOADS_DIR, room), {
         recursive: true,
         force: true,
