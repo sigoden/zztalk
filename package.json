@@ -17,6 +17,8 @@
     "@mui/system": "^5.1.0",
     "generate-avatar": "^1.4.10",
     "koa": "^2.13.4",
+    "koa-mount": "^4.0.0",
+    "koa-static": "^5.0.0",
     "md5": "^2.3.0",
     "multer": "^1.4.3",
     "nanoid": "^3.1.30",

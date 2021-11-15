@@ -5,11 +5,13 @@ const fs = require("fs");
 const Router = require("@koa/router");
 const multer = require("@koa/multer");
 const SocketIO = require("socket.io");
+const mount = require("koa-mount");
+const serve = require("koa-static");
 const next = require("next");
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const TIMEOUT = parseInt(process.env.TIMEOUT, 10) || 30 * 60;
-const UPLOADS_DIR = path.resolve(__dirname, "public/uploads");
+const UPLOADS_DIR = path.resolve(__dirname, "uploads");
 
 const dev = process.env.NODE_ENV !== "production";
 const nextApp = next({ dev });
@@ -45,6 +47,7 @@ async function main() {
     ctx.respond = false;
   });
 
+  app.use(mount("/uploads", serve(UPLOADS_DIR)));
   app.use(router.routes());
   app.use(router.allowedMethods());
 
