@@ -32,9 +32,9 @@ async function main() {
       file,
       body: { room },
     } = ctx.request;
-    if (!chatrooms[room]) {
+    if (!chatrooms[room] || !file) {
       ctx.status = 400;
-      ctx.body = "room not found";
+      ctx.body = "invalid args";
       return;
     }
     const filePath = await saveUploads(room, file);

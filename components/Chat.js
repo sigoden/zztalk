@@ -1,7 +1,9 @@
 import { createRef, useEffect, useState } from "react";
 import * as md5 from "md5";
 import * as jdenticon from "jdenticon";
-import { Box } from "@mui/system";
+import axios from "axios";
+import Box from "@mui/material/Box";
+import LinearProgress from "@mui/material/LinearProgress";
 import { io } from "socket.io-client";
 import {
   Avatar,
@@ -18,6 +20,7 @@ const user = md5(navigator.userAgent);
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [progress, setProgress] = useState(0);
   const fileRef = createRef();
   useEffect(() => {
     const socket = io("/", {
@@ -37,25 +40,40 @@ export default function Chat({ room }) {
   const handleSend = (message) => {
     socket.emit("message", { room, message });
   };
+  const handleAttachClick = () => {
+    if (fileRef.current) fileRef.current.click();
+  };
   const handleUpload = async (file) => {
     const formData = new FormData();
     formData.append("room", room);
     formData.append("file", file);
     try {
-      const res = await fetch("/uploads", {
+      const res = await axios({
         method: "post",
-        body: formData,
+        url: "/uploads",
+        data: formData,
+        onUploadProgress: (e) => {
+          setProgress(parseInt((e.loaded / e.total) * 100));
+        },
       });
-      const { filePath, fileName } = await res.json();
+      setProgress(0);
+      const { filePath, fileName } = res.data;
       socket.emit("message", {
         room,
         message: `<a target="_blank" href="${filePath}">${fileName}</a>`,
       });
-    } catch (err) {}
+    } catch (err) {
+      setProgress(0);
+    }
   };
   return (
     <Box sx={{ maxWidth: "md", mx: "auto", a: { color: "black" } }}>
-      <MainContainer style={{ height: "99vh" }}>
+      <LinearProgress
+        sx={{ visibility: progress > 0 ? "visible" : "hidden" }}
+        variant="determinate"
+        value={progress}
+      />
+      <MainContainer style={{ height: "calc(100vh - 25px)" }}>
         <ChatContainer>
           <MessageList>
             {messages.length > 0 && (
@@ -70,7 +88,8 @@ export default function Chat({ room }) {
           <MessageInput
             placeholder="Type message here"
             onSend={(text) => handleSend(text)}
-            onAttachClick={() => fileRef.current && fileRef.current.click()}
+            onAttachClick={handleAttachClick}
+            attachDisabled={progress > 0}
           />
         </ChatContainer>
       </MainContainer>
