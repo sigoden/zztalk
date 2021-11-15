@@ -82,6 +82,7 @@ async function main() {
       let { msgId } = chatroom;
       msgId += 1;
       msg.sender = socket.sender;
+      msg.sentAt = now;
       msg.id = chatroom.msgId = msgId;
       chatroom.updateAt = now;
       chatroom.msgs.push(msg);

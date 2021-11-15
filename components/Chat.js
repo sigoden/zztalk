@@ -9,6 +9,7 @@ import {
   ChatContainer,
   MessageList,
   Message,
+  MessageSeparator,
   MessageInput,
 } from "@chatscope/chat-ui-kit-react";
 
@@ -57,6 +58,9 @@ export default function Chat({ room }) {
       <MainContainer style={{ height: "99vh" }}>
         <ChatContainer>
           <MessageList>
+            {messages.length > 0 && (
+              <MessageSeparator>{getMsgDate(messages[0])}</MessageSeparator>
+            )}
             {messages.map((msg) => (
               <Message key={msg.id} model={msg}>
                 <Avatar src={genAvatar(msg.sender)} />
@@ -87,11 +91,22 @@ function santizeMsg(msg) {
   return {
     id,
     message,
+    sentAt,
     sender,
     direction,
     position: "single",
   };
 }
+
 function genAvatar(sender, size = 200) {
   return "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(sender, size));
+}
+
+function getMsgDate(msg) {
+  const date = new Date(msg.sentAt);
+  let hh = date.getHours();
+  let mm = date.getMinutes();
+  if (hh < 10) hh = "0" + hh;
+  if (mm < 10) mm = "0" + mm;
+  return `${hh}:${mm}`;
 }
