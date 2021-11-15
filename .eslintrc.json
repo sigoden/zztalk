@@ -1,3 +1,10 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": [
+    "next",
+    "plugin:prettier/recommended"
+  ],
+  "ignorePatterns": [".next", "node_modules", "tmp"],
+  "rules": {
+    "semi": ["error", "always"]
+  }
 }
