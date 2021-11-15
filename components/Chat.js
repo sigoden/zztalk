@@ -53,7 +53,7 @@ export default function Chat({ room }) {
     } catch (err) {}
   };
   return (
-    <Box sx={{ maxWidth: "md", mx: "auto" }}>
+    <Box sx={{ maxWidth: "md", mx: "auto", a: { color: "black" } }}>
       <MainContainer style={{ height: "99vh" }}>
         <ChatContainer>
           <MessageList>
@@ -83,12 +83,9 @@ export default function Chat({ room }) {
 
 function santizeMsg(msg) {
   const { id, sentAt, sender, message } = msg;
-  const sentDate = new Date(sentAt);
-  const sendTime = `${sentDate.getHours()}:${sentDate.getMinutes()}`;
   const direction = sender === user ? 1 : 0;
   return {
     id,
-    sendTime,
     message,
     sender,
     direction,
