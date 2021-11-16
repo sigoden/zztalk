@@ -1,8 +1,6 @@
 # SelfChat
 
-Chat in temporary room. Message and files will be cleaned in 30 minutes.
-
-> The original intention is to share files and pictures on multiple devices
+Anonymous chat in temporary room. Any message or file in current room will be purges in 30 minutes.
 
 ## Docker
 

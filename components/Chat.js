@@ -4,6 +4,7 @@ import * as jdenticon from "jdenticon";
 import axios from "axios";
 import Box from "@mui/material/Box";
 import LinearProgress from "@mui/material/LinearProgress";
+import * as humanizeDuration from "humanize-duration";
 import { io } from "socket.io-client";
 import {
   Avatar,
@@ -115,10 +116,12 @@ function santizeMsg(msg) {
     if (kind === 1) {
       const { href } = location;
       const link = href.split("?")[0];
-      message = `room created, share <a target="_blank" href="${link}">${link}</a> to invite others`;
+      message = `Share <a target="_blank" href="${link}">${link}</a> to invite members. <strong>Any message or file in current room will be deleted in ${humanizeDuration(
+        system.duration * 1000
+      )}.</strong>`;
     } else if (kind === 2) {
       message = `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
-        msg.system.sender
+        system.sender
       )}" /> joined room`;
     }
     avatar = "/system.svg";

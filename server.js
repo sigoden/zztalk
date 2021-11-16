@@ -7,6 +7,7 @@ const multer = require("@koa/multer");
 const SocketIO = require("socket.io");
 const mount = require("koa-mount");
 const serve = require("koa-static");
+const { customAlphabet } = require("nanoid");
 const next = require("next");
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -18,14 +19,22 @@ const nextApp = next({ dev });
 const handle = nextApp.getRequestHandler();
 const upload = multer();
 const chatrooms = {};
+const nanoid = customAlphabet("123456789abcdefghijklmnopqrstuvwxyz", 4);
+
+let files = [];
 
 main();
 
 async function main() {
-  await Promise.all([nextApp.prepare(), ensureUploadsDir()]);
+  await Promise.all([nextApp.prepare(), setupUploadsDir()]);
 
   const app = new Koa();
   const router = new Router();
+
+  router.get("/", (ctx) => {
+    ctx.status = 307;
+    ctx.redirect("/r/" + nanoid());
+  });
 
   router.post("/uploads", upload.single("file"), async (ctx) => {
     const {
@@ -37,8 +46,13 @@ async function main() {
       ctx.body = "invalid args";
       return;
     }
-    const filePath = await saveUploads(room, file);
+    const savePath = await saveUploads(room, file);
+    const filePath = savePath.slice(__dirname.length);
     const fileName = path.basename(filePath);
+    files.push({
+      expire: currentTime() + DURATION,
+      savePath,
+    });
     ctx.body = { filePath, fileName };
   });
 
@@ -79,7 +93,7 @@ async function main() {
           msgId: 0,
           msgs: [],
         };
-        boardcast({ room, system: { kind: 1 } });
+        boardcast({ room, system: { kind: 1, duration: DURATION } });
       }
       socket.sender = sender;
       chatroom.updateAt = now;
@@ -101,25 +115,10 @@ async function main() {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
 
-  setImmediate(purgeOutdated, DURATION / 10);
+  clearFiles();
 }
 
-async function purgeOutdated() {
-  const now = currentTime();
-  const names = Object.keys(chatrooms);
-  for (const name of names) {
-    const chatroom = chatrooms[name];
-    if (now - chatroom.updateAt > DURATION) {
-      await fs.promises.rm(path.resolve(UPLOADS_DIR, room), {
-        recursive: true,
-        force: true,
-      });
-    }
-    delete chatrooms[name];
-  }
-}
-
-async function ensureUploadsDir() {
+async function setupUploadsDir() {
   await fs.promises.rm(UPLOADS_DIR, {
     recursive: true,
     force: true,
@@ -131,8 +130,9 @@ async function saveUploads(room, file) {
   const name = file.originalname;
   const roomDir = path.resolve(UPLOADS_DIR, room);
   await ensurceDir(roomDir);
-  await fs.promises.writeFile(path.resolve(roomDir, name), file.buffer);
-  return `/uploads/${room}/${name}`;
+  const savePath = path.resolve(roomDir, name);
+  await fs.promises.writeFile(savePath, file.buffer);
+  return savePath;
 }
 
 async function ensurceDir(dir) {
@@ -142,6 +142,33 @@ async function ensurceDir(dir) {
   } catch (err) {
     await fs.promises.mkdir(dir);
   }
+}
+
+async function clearFiles() {
+  let idx = -1;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const now = currentTime();
+    if (file.expire > now) {
+      break;
+    }
+    try {
+      await fs.promises.rm(file.savePath, { force: true });
+      idx = i;
+    } catch {}
+  }
+  if (idx === -1) {
+    await sleep(10);
+  } else {
+    files = files.slice(idx + 1);
+  }
+  return clearFiles();
+}
+
+async function sleep(seconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, seconds * 1000);
+  });
 }
 
 function currentTime() {
