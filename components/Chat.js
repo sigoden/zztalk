@@ -16,6 +16,7 @@ import {
 } from "@chatscope/chat-ui-kit-react";
 
 const user = md5(navigator.userAgent).slice(0, 6);
+const avatarCache = {};
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
@@ -81,7 +82,7 @@ export default function Chat({ room }) {
             )}
             {messages.map((msg) => (
               <Message key={msg.id} model={msg}>
-                <Avatar src={genAvatar(msg.sender)} />
+                <Avatar src={msg.avatar} />
               </Message>
             ))}
           </MessageList>
@@ -105,20 +106,42 @@ export default function Chat({ room }) {
 }
 
 function santizeMsg(msg) {
-  const { id, sentAt, sender, message } = msg;
-  const direction = sender === user ? 1 : 0;
+  const { id, system, sentAt, sender } = msg;
+  let { message } = msg;
+  let avatar;
+  let direction = 0;
+  if (system) {
+    const { kind } = system;
+    if (kind === 1) {
+      const { href } = location;
+      const link = href.split("?")[0];
+      message = `room created, share <a target="_blank" href="${link}">${link}</a> to invite others`;
+    } else if (kind === 2) {
+      message = `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
+        msg.system.sender
+      )}" /> joined room`;
+    }
+    avatar = "/system.svg";
+  } else {
+    if (sender === user) direction = 1;
+    avatar = genAvatar(sender);
+  }
   return {
     id,
-    message,
     sentAt,
     sender,
+    message,
+    avatar,
     direction,
     position: "single",
   };
 }
 
 function genAvatar(sender, size = 200) {
-  return "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(sender, size));
+  if (avatarCache[sender]) return avatarCache[sender];
+  avatarCache[sender] =
+    "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(sender, size));
+  return avatarCache[sender];
 }
 
 function getMsgDate(msg) {

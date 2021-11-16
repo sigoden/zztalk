@@ -79,6 +79,7 @@ async function main() {
           msgId: 0,
           msgs: [],
         };
+        boardcast({ room, system: { kind: 1 } });
       }
       socket.sender = sender;
       chatroom.updateAt = now;
@@ -86,7 +87,10 @@ async function main() {
       chatroom.msgs = msgs;
       const senders = new Set(msgs.map((msg) => msg.sender));
       if (!senders.has(sender)) {
-        boardcast({ room, message: "✨ enter room" });
+        boardcast({
+          room,
+          system: { kind: 2, sender },
+        });
       }
       return cb(msgs);
     });
