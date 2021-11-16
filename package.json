@@ -1,7 +1,7 @@
 {
   "name": "shinchat",
   "version": "1.0.0",
-  "description": "Chat with yourself, share text or files with multiple devices",
+  "description": "Chat in temporary room.",
   "private": true,
   "scripts": {
     "start": "node server.js",

@@ -1,8 +1,12 @@
 # SelfChat
 
-Chat with yourself, share text or files with multiple devices
+Chat in temporary room. Message and files will be cleaned in 30 minutes.
 
-*Message or files will be cleaned in 30 minutes*
+> The original intention is to share files and pictures on multiple devices
+
+## Docker
+
+docker run -d -p 3000:3000 ghcr.io/sigoden/selfchat:latest
 
 ## Heroku
 
