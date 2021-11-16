@@ -118,9 +118,13 @@ function santizeMsg(msg) {
         system.duration * 1000
       )}.</strong>`;
     } else if (kind === 2) {
-      message = `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
-        system.sender
-      )}" /> joined room`;
+      if (sender !== user) {
+        message = `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
+          system.sender
+        )}" /> entered the room`;
+      } else {
+        message = `You entered the room`;
+      }
     }
     avatar = "/system.svg";
   } else {
