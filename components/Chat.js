@@ -114,9 +114,7 @@ function santizeMsg(msg) {
   if (system) {
     const { kind } = system;
     if (kind === 1) {
-      const { href } = location;
-      const link = href.split("?")[0];
-      message = `Share <a target="_blank" href="${link}">${link}</a> to invite members. <strong>Any message or file in current room will be deleted in ${humanizeDuration(
+      message = `Share current page url to invite members. <strong>Any message or file in current room will be deleted in ${humanizeDuration(
         system.duration * 1000
       )}.</strong>`;
     } else if (kind === 2) {
