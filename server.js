@@ -19,7 +19,7 @@ const nextApp = next({ dev });
 const handle = nextApp.getRequestHandler();
 const upload = multer();
 const chatrooms = {};
-const nanoid = customAlphabet("123456789abcdefghijklmnopqrstuvwxyz", 4);
+const nanoid = customAlphabet("123456789abcdefghijklmnopqrstuvwxyz", 6);
 
 let files = [];
 
