@@ -1,7 +1,7 @@
 const path = require("path");
 const http = require("http");
 const Koa = require("koa");
-const fs = require("fs");
+const fs = require("fs").promises;
 const Router = require("@koa/router");
 const multer = require("@koa/multer");
 const SocketIO = require("socket.io");
@@ -10,8 +10,8 @@ const serve = require("koa-static");
 const { customAlphabet } = require("nanoid");
 const next = require("next");
 
+const HOST = process.env.HOST || "127.0.0.1";
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const DURATION = parseInt(process.env.DURATION, 10) || 30 * 60;
 const UPLOADS_DIR = path.resolve(__dirname, "uploads");
 
 const dev = process.env.NODE_ENV !== "production";
@@ -20,8 +20,6 @@ const handle = nextApp.getRequestHandler();
 const upload = multer();
 const chatrooms = {};
 const nanoid = customAlphabet("123456789abcdefghijklmnopqrstuvwxyz", 6);
-
-let files = [];
 
 main();
 
@@ -49,10 +47,6 @@ async function main() {
     const savePath = await saveUploads(room, file);
     const filePath = savePath.slice(__dirname.length);
     const fileName = path.basename(filePath);
-    files.push({
-      expire: currentTime() + DURATION,
-      savePath,
-    });
     ctx.body = { filePath, fileName };
   });
 
@@ -69,57 +63,89 @@ async function main() {
   const io = new SocketIO.Server(server);
 
   io.on("connection", (socket) => {
-    const boardcast = (msg) => {
-      const { room } = msg;
-      const now = currentTime();
-      if (!room || !chatrooms[room]) return;
-      let chatroom = chatrooms[room];
-      let { msgId } = chatroom;
-      msgId += 1;
-      msg.sender = socket.sender;
-      msg.sentAt = now;
-      msg.id = chatroom.msgId = msgId;
-      chatroom.updateAt = now;
-      chatroom.msgs.push(msg);
-      io.to(room).emit("message", msg);
+    const procMsg = (msg) => {
+      const { room } = socket.data;
+      msg.id = newChatroomMsgId(room);
+      msg.sentAt = currentTime();
+      return msg;
     };
-    socket.on("enter", ({ room, sender }, cb) => {
-      if (!room) return;
-      if (!socket.rooms.has(room)) socket.join(room);
-      let chatroom = chatrooms[room];
-      const now = currentTime();
-      if (!chatrooms[room]) {
-        chatroom = chatrooms[room] = {
-          msgId: 0,
-          msgs: [],
-        };
-        boardcast({ room, system: { kind: 1, duration: DURATION } });
+    socket.on("enter", ({ room, user }) => {
+      if (!room || !user) return;
+      socket.join(room);
+      const chatroom = ensureChatroom(room);
+      socket.data = { room, user };
+      socket.send(procMsg({ system: true, kind: "welcome" }));
+      if (chatroom.members.size > 0) {
+        socket.send(
+          procMsg({
+            system: true,
+            kind: "listMembers",
+            users: Array.from(chatroom.members),
+          })
+        );
+        socket.to(room).emit(
+          "message",
+          procMsg({
+            system: true,
+            kind: "addMember",
+            user,
+          })
+        );
       }
-      socket.sender = sender;
-      chatroom.updateAt = now;
-      const msgs = chatroom.msgs.filter((msg) => now - msg.sentAt < DURATION);
-      chatroom.msgs = msgs;
-      const senders = new Set(msgs.map((msg) => msg.sender));
-      if (!senders.has(sender)) {
-        boardcast({
-          room,
-          system: { kind: 2, sender },
-        });
-      }
-      return cb(msgs);
+      chatroom.members.add(user);
     });
-    socket.on("message", (msg) => boardcast(msg));
+    socket.on("chat", (message) => {
+      if (!socket.data) return;
+      const { room, user } = socket.data;
+      io.to(room).emit("message", procMsg({ user, message }));
+    });
+    socket.on("disconnect", async () => {
+      if (!socket.data) return;
+      const { room, user } = socket.data;
+      const chatroom = ensureChatroom(room);
+      if (chatroom.members.delete(user)) {
+        socket.to(room).emit(
+          "message",
+          procMsg({
+            system: true,
+            kind: "removeMember",
+            user,
+          })
+        );
+      }
+      if (chatroom.members.size === 0) {
+        await clearChatroom(room);
+      }
+    });
   });
 
-  server.listen(PORT, () => {
-    console.log(`> Ready on http://localhost:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`> Ready on http://${HOST}:${PORT}`);
   });
+}
 
-  clearFiles();
+function ensureChatroom(room) {
+  if (!chatrooms[room]) {
+    chatrooms[room] = { msgId: 0, members: new Set() };
+  }
+  return chatrooms[room];
+}
+
+function newChatroomMsgId(room) {
+  const chatroom = ensureChatroom(room);
+  chatroom.msgId += 1;
+  return chatroom.msgId;
+}
+
+async function clearChatroom(room) {
+  try {
+    const roomDir = path.resolve(UPLOADS_DIR, room);
+    await fs.rm(roomDir, { recursive: true, force: true });
+  } catch {}
 }
 
 async function setupUploadsDir() {
-  await fs.promises.rm(UPLOADS_DIR, {
+  await fs.rm(UPLOADS_DIR, {
     recursive: true,
     force: true,
   });
@@ -131,44 +157,17 @@ async function saveUploads(room, file) {
   const roomDir = path.resolve(UPLOADS_DIR, room);
   await ensurceDir(roomDir);
   const savePath = path.resolve(roomDir, name);
-  await fs.promises.writeFile(savePath, file.buffer);
+  await fs.writeFile(savePath, file.buffer);
   return savePath;
 }
 
 async function ensurceDir(dir) {
   try {
-    const stat = await fs.promises.stat(dir);
+    const stat = await fs.stat(dir);
     if (stat.isDirectory()) return;
   } catch (err) {
-    await fs.promises.mkdir(dir);
+    await fs.mkdir(dir);
   }
-}
-
-async function clearFiles() {
-  let idx = -1;
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const now = currentTime();
-    if (file.expire > now) {
-      break;
-    }
-    try {
-      await fs.promises.rm(file.savePath, { force: true });
-      idx = i;
-    } catch {}
-  }
-  if (idx === -1) {
-    await sleep(10);
-  } else {
-    files = files.slice(idx + 1);
-  }
-  return clearFiles();
-}
-
-async function sleep(seconds) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, seconds * 1000);
-  });
 }
 
 function currentTime() {

@@ -4,7 +4,6 @@ import * as jdenticon from "jdenticon";
 import axios from "axios";
 import Box from "@mui/material/Box";
 import LinearProgress from "@mui/material/LinearProgress";
-import * as humanizeDuration from "humanize-duration";
 import { io } from "socket.io-client";
 import {
   Avatar,
@@ -12,7 +11,6 @@ import {
   ChatContainer,
   MessageList,
   Message,
-  MessageSeparator,
   MessageInput,
 } from "@chatscope/chat-ui-kit-react";
 
@@ -30,9 +28,7 @@ export default function Chat({ room }) {
     });
     setSocket(socket);
     socket.on("connect", () => {
-      socket.emit("enter", { room, sender: user }, (messages) => {
-        setMessages(messages.map(santizeMsg));
-      });
+      socket.emit("enter", { room, user });
     });
     socket.on("message", (message) => {
       setMessages((v) => [...v, santizeMsg(message)]);
@@ -40,7 +36,7 @@ export default function Chat({ room }) {
     return () => socket.disconnect();
   }, [room]);
   const handleSend = (message) => {
-    socket.emit("message", { room, message });
+    socket.emit("chat", message);
   };
   const handleAttachClick = () => {
     if (fileRef.current) fileRef.current.click();
@@ -60,10 +56,7 @@ export default function Chat({ room }) {
       });
       setProgress(0);
       const { filePath, fileName } = res.data;
-      socket.emit("message", {
-        room,
-        message: `<a target="_blank" href="${filePath}">${fileName}</a>`,
-      });
+      handleSend(`<a target="_blank" href="${filePath}">${fileName}</a>`);
     } catch (err) {
       setProgress(0);
     }
@@ -78,9 +71,6 @@ export default function Chat({ room }) {
       <MainContainer style={{ height: "calc(100vh - 25px)" }}>
         <ChatContainer>
           <MessageList>
-            {messages.length > 0 && (
-              <MessageSeparator>{getMsgDate(messages[0])}</MessageSeparator>
-            )}
             {messages.map((msg) => (
               <Message key={msg.id} model={msg}>
                 <Avatar src={msg.avatar} />
@@ -107,34 +97,28 @@ export default function Chat({ room }) {
 }
 
 function santizeMsg(msg) {
-  const { id, system, sentAt, sender } = msg;
+  const { id, system, kind, sentAt } = msg;
   let { message } = msg;
   let avatar;
   let direction = 0;
   if (system) {
-    const { kind } = system;
-    if (kind === 1) {
-      message = `Share current page url to invite members. <strong>Any message or file in current room will be deleted in ${humanizeDuration(
-        system.duration * 1000
-      )}.</strong>`;
-    } else if (kind === 2) {
-      if (sender !== user) {
-        message = `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
-          system.sender
-        )}" /> entered the room`;
-      } else {
-        message = `You entered the room`;
-      }
+    if (kind === "welcome") {
+      message = `Share current page url to invite members.`;
+    } else if (kind === "listMembers") {
+      message = `Current members: ` + msg.users.map(embedAvatar).join("");
+    } else if (kind === "addMember") {
+      message = embedAvatar(msg.user) + " enter room";
+    } else if (kind === "removeMember") {
+      message = embedAvatar(msg.user) + " quit room";
     }
     avatar = "/system.svg";
   } else {
-    if (sender === user) direction = 1;
-    avatar = genAvatar(sender);
+    if (user === msg.user) direction = 1;
+    avatar = genAvatar(msg.user);
   }
   return {
     id,
     sentAt,
-    sender,
     message,
     avatar,
     direction,
@@ -142,11 +126,17 @@ function santizeMsg(msg) {
   };
 }
 
-function genAvatar(sender, size = 200) {
-  if (avatarCache[sender]) return avatarCache[sender];
-  avatarCache[sender] =
-    "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(sender, size));
-  return avatarCache[sender];
+function embedAvatar(user) {
+  return `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
+    user
+  )}" />`;
+}
+
+function genAvatar(user, size = 200) {
+  if (avatarCache[user]) return avatarCache[user];
+  avatarCache[user] =
+    "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(user, size));
+  return avatarCache[user];
 }
 
 function getMsgDate(msg) {
