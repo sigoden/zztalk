@@ -4,8 +4,6 @@ import * as md5 from "md5";
 import * as jdenticon from "jdenticon";
 import axios from "axios";
 import Box from "@mui/material/Box";
-import Modal from "@mui/material/Modal";
-import Typography from "@mui/material/Typography";
 import LinearProgress from "@mui/material/LinearProgress";
 import { io } from "socket.io-client";
 import {
@@ -23,13 +21,11 @@ import { Remarkable, utils } from "remarkable";
 
 const markd = new Remarkable();
 const user = md5(navigator.userAgent).slice(0, 6);
-const avatarCache = {};
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
   const [msgs, setMsgs, msgsRef] = useStateRef([]);
   const [members, setMembers, membersRef] = useStateRef([]);
-  const [showHelp, setShowHelp] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileRef = createRef();
   useEffect(() => {
@@ -40,10 +36,7 @@ export default function Chat({ room }) {
     socket.on("connect", () => {
       socket.emit("enter", { room, user });
     });
-    socket.on("message", (msg) => {
-      msg.html = markd.render(msg.message);
-      handleMsg(msg);
-    });
+    socket.on("message", handleMsg);
     return () => socket.disconnect();
   }, [room, handleMsg]);
   const handleMsg = useCallback(
@@ -64,8 +57,9 @@ export default function Chat({ room }) {
         let msgs = msgsRef.current;
         const newMsg = {
           ...msg,
+          html: markd.render(msg.message),
           position: "single",
-          avatar: null,
+          avatar: getAvatar(msg.user),
           direction: msg.user === user ? 1 : 0,
         };
         if (msgs.length > 0) {
@@ -76,12 +70,9 @@ export default function Chat({ room }) {
             } else if (prevMsg.position === "last") {
               prevMsg.position = "normal";
             }
+            prevMsg.avatar = null;
             newMsg.position = "last";
-          } else {
-            newMsg.avatar = genAvatar(msg.user);
           }
-        } else {
-          newMsg.avatar = genAvatar(msg.user);
         }
         msgs = [...msgs, newMsg];
         setMsgs(msgs);
@@ -89,6 +80,16 @@ export default function Chat({ room }) {
     },
     [membersRef, setMembers, msgsRef, setMsgs]
   );
+  const systemMsg = (kind) => {
+    if (kind === "tips") {
+      const message = `
+1. Share url to invite members.
+2. If all members quit, the room will be destroyed.
+3. All files will be deleted along with the room.
+`;
+      handleMsg({ id: Date.now(), user: "system", message });
+    }
+  };
   const handleSend = (message) => {
     socket.emit("chat", message);
   };
@@ -151,11 +152,11 @@ export default function Chat({ room }) {
           <ConversationHeader>
             <AvatarGroup size="md">
               {members.map((member) => (
-                <Avatar key={member} src={genAvatar(member)} />
+                <Avatar key={member} src={getAvatar(member)} />
               ))}
             </AvatarGroup>
             <ConversationHeader.Actions>
-              <InfoButton onClick={() => setShowHelp(true)} />
+              <InfoButton onClick={() => systemMsg("tips")} />
             </ConversationHeader.Actions>
           </ConversationHeader>
           <MessageList style={{ paddingTop: "4px" }}>
@@ -184,46 +185,14 @@ export default function Chat({ room }) {
         hidden
         onChange={(e) => handleUpload(e.target.files[0])}
       />
-      <Modal
-        open={showHelp}
-        onClose={() => setShowHelp(false)}
-        aria-labelledby="modal-modal-title"
-        aria-describedby="modal-modal-description"
-      >
-        <Box
-          sx={{
-            position: "absolute",
-            top: "33%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "80%",
-            maxWidth: 600,
-            bgcolor: "background.paper",
-            boxShadow: 24,
-            p: 2,
-          }}
-        >
-          <Typography id="modal-modal-title" variant="h6" component="h2">
-            Note
-          </Typography>
-          <Box id="modal-modal-description" sx={{ mt: 2 }}>
-            <Typography variant="body1">
-              1. Share url to invite members.
-            </Typography>
-            <Typography variant="body1">
-              2. If all members quit, the room will be destroyed.
-            </Typography>
-            <Typography variant="body1">
-              3. All files will be deleted along with the room.
-            </Typography>
-          </Box>
-        </Box>
-      </Modal>
     </Box>
   );
 }
 
-function genAvatar(user, size = 200) {
+const avatarCache = {
+  system: "/system.svg",
+};
+function getAvatar(user, size = 200) {
   if (avatarCache[user]) return avatarCache[user];
   avatarCache[user] =
     "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(user, size));

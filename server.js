@@ -66,7 +66,6 @@ async function main() {
     const procMsg = (msg) => {
       const { room } = socket.data;
       msg.id = newChatroomMsgId(room);
-      msg.sentAt = currentTime();
       return msg;
     };
     socket.on("enter", ({ room, user }) => {
@@ -167,8 +166,4 @@ async function ensurceDir(dir) {
   } catch (err) {
     await fs.mkdir(dir);
   }
-}
-
-function currentTime() {
-  return Math.floor(Date.now() / 1000);
 }
