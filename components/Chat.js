@@ -19,9 +19,9 @@ import {
   MessageInput,
   InfoButton,
 } from "@chatscope/chat-ui-kit-react";
-import { Remarkable } from "remarkable";
+import { Remarkable, utils } from "remarkable";
 
-const mard = new Remarkable();
+const markd = new Remarkable();
 const user = md5(navigator.userAgent).slice(0, 6);
 const avatarCache = {};
 
@@ -41,6 +41,7 @@ export default function Chat({ room }) {
       socket.emit("enter", { room, user });
     });
     socket.on("message", (msg) => {
+      msg.html = markd.render(msg.message);
       handleMsg(msg);
     });
     return () => socket.disconnect();
@@ -62,16 +63,14 @@ export default function Chat({ room }) {
       } else {
         let msgs = msgsRef.current;
         const newMsg = {
-          id: msg.id,
-          message: msg.message,
-          sender: msg.user,
+          ...msg,
           position: "single",
           avatar: null,
           direction: msg.user === user ? 1 : 0,
         };
         if (msgs.length > 0) {
           const prevMsg = msgs[msgs.length - 1];
-          if (prevMsg.sender === newMsg.sender) {
+          if (prevMsg.user === newMsg.user) {
             if (prevMsg.position === "single") {
               prevMsg.position = "first";
             } else if (prevMsg.position === "last") {
@@ -111,7 +110,7 @@ export default function Chat({ room }) {
       });
       setProgress(0);
       const { filePath, fileName } = res.data;
-      handleSend(`<a target="_blank" href="${filePath}">${fileName}</a>`);
+      handleSend(`[${fileName}](${filePath})`);
     } catch (err) {
       setProgress(0);
     }
@@ -165,14 +164,14 @@ export default function Chat({ room }) {
                 {msg.avatar && <Avatar src={msg.avatar} />}
                 <Message.HtmlContent
                   className="markdown-body"
-                  html={msg.message}
+                  html={msg.html}
                 />
               </Message>
             ))}
           </MessageList>
           <MessageInput
             placeholder="Type message here"
-            onSend={(...args) => handleSend(mard.render(args[2]))}
+            onSend={(...args) => handleSend(args[2])}
             onAttachClick={handleAttachClick}
             attachDisabled={progress > 0}
           />
@@ -230,3 +229,21 @@ function genAvatar(user, size = 200) {
     "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(user, size));
   return avatarCache[user];
 }
+
+markd.renderer.rules.link_open = function (tokens, idx, options /* env */) {
+  console.log(utils);
+  var title = tokens[idx].title
+    ? ' title="' +
+      utils.escapeHtml(utils.replaceEntities(tokens[idx].title)) +
+      '"'
+    : "";
+  var target = options.linkTarget ? ' target="' + options.linkTarget + '"' : "";
+  return (
+    '<a target="_blank" href="' +
+    utils.escapeHtml(tokens[idx].href) +
+    '"' +
+    title +
+    target +
+    ">"
+  );
+};
