@@ -16,7 +16,7 @@
     "@emotion/styled": "^11.6.0",
     "@koa/multer": "^3.0.0",
     "@koa/router": "^10.1.1",
-    "@mui/material": "^5.1.0",
+    "@mui/material": "^5.1.1",
     "axios": "^0.24.0",
     "jdenticon": "^3.1.1",
     "koa": "^2.13.4",

@@ -4,6 +4,8 @@ import * as md5 from "md5";
 import * as jdenticon from "jdenticon";
 import axios from "axios";
 import Box from "@mui/material/Box";
+import Modal from "@mui/material/Modal";
+import Typography from "@mui/material/Typography";
 import LinearProgress from "@mui/material/LinearProgress";
 import { io } from "socket.io-client";
 import {
@@ -25,6 +27,7 @@ export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
   const [msgs, setMsgs] = useState([]);
   const [members, setMembers, membersRef] = useStateRef([]);
+  const [showHelp, setShowHelp] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileRef = createRef();
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function Chat({ room }) {
               ))}
             </AvatarGroup>
             <ConversationHeader.Actions>
-              <InfoButton />
+              <InfoButton onClick={() => setShowHelp(true)} />
             </ConversationHeader.Actions>
           </ConversationHeader>
           <MessageList>
@@ -138,6 +141,41 @@ export default function Chat({ room }) {
         hidden
         onChange={(e) => handleUpload(e.target.files[0])}
       />
+      <Modal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            top: "33%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "80%",
+            maxWidth: 600,
+            bgcolor: "background.paper",
+            boxShadow: 24,
+            p: 2,
+          }}
+        >
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Note
+          </Typography>
+          <Box id="modal-modal-description" sx={{ mt: 2 }}>
+            <Typography variant="body1">
+              1. Share url to invite members.
+            </Typography>
+            <Typography variant="body1">
+              2. If all members quit, the room will be destroyed.
+            </Typography>
+            <Typography variant="body1">
+              3. All files will be deleted along with the room.
+            </Typography>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 }
