@@ -1,9 +1,9 @@
 {
-  "name": "selfchat",
-  "keywords": ["nextjs", "chat", "selfchat"],
+  "name": "zztalk",
+  "keywords": ["nextjs", "chat", "zztalk"],
   "description": "Chat with yourself, share text or files with multiple devices",
-  "website": "https://selfchat.herokuapp.com",
-  "repository": "https://github.com/sigoden/selfchat",
+  "website": "https://zztalk.herokuapp.com",
+  "repository": "https://github.com/sigoden/zztalk",
   "buildpacks": [
     {
       "url": "heroku/nodejs"
