@@ -19,7 +19,9 @@ import {
   MessageInput,
   InfoButton,
 } from "@chatscope/chat-ui-kit-react";
+import { Remarkable } from "remarkable";
 
+const mard = new Remarkable();
 const user = md5(navigator.userAgent).slice(0, 6);
 const avatarCache = {};
 
@@ -132,6 +134,10 @@ export default function Chat({ room }) {
         },
         ".cs-message__content": {
           background: "white !important",
+          whiteSpace: "unset",
+        },
+        ".markdown-body > p": {
+          margin: 0,
         },
       }}
     >
@@ -157,12 +163,16 @@ export default function Chat({ room }) {
             {msgs.map((msg) => (
               <Message key={msg.id} model={msg} avatarSpacer={!msg.avatar}>
                 {msg.avatar && <Avatar src={msg.avatar} />}
+                <Message.HtmlContent
+                  className="markdown-body"
+                  html={msg.message}
+                />
               </Message>
             ))}
           </MessageList>
           <MessageInput
             placeholder="Type message here"
-            onSend={(text) => handleSend(text)}
+            onSend={(...args) => handleSend(mard.render(args[2]))}
             onAttachClick={handleAttachClick}
             attachDisabled={progress > 0}
           />
