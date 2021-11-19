@@ -1,4 +1,5 @@
-import { createRef, useEffect, useState } from "react";
+import { createRef, useCallback, useEffect, useState } from "react";
+import useStateRef from "react-usestateref";
 import * as md5 from "md5";
 import * as jdenticon from "jdenticon";
 import axios from "axios";
@@ -8,10 +9,13 @@ import { io } from "socket.io-client";
 import {
   Avatar,
   MainContainer,
+  ConversationHeader,
+  AvatarGroup,
   ChatContainer,
   MessageList,
   Message,
   MessageInput,
+  InfoButton,
 } from "@chatscope/chat-ui-kit-react";
 
 const user = md5(navigator.userAgent).slice(0, 6);
@@ -19,7 +23,8 @@ const avatarCache = {};
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [msgs, setMsgs] = useState([]);
+  const [members, setMembers, membersRef] = useStateRef([]);
   const [progress, setProgress] = useState(0);
   const fileRef = createRef();
   useEffect(() => {
@@ -30,11 +35,32 @@ export default function Chat({ room }) {
     socket.on("connect", () => {
       socket.emit("enter", { room, user });
     });
-    socket.on("message", (message) => {
-      setMessages((v) => [...v, santizeMsg(message)]);
+    socket.on("message", (msg) => {
+      if (msg.action) {
+        handleActionMsg(msg);
+      } else {
+        setMsgs((msgs) => [...msgs, santizeMsg(msg)]);
+      }
     });
     return () => socket.disconnect();
-  }, [room]);
+  }, [room, handleActionMsg]);
+  const handleActionMsg = useCallback(
+    (msg) => {
+      const members = membersRef.current;
+      const { action } = msg;
+      console.log(action, msg, members);
+      if (action === "listMembers") {
+        setMembers(msg.users);
+      } else if (action === "addMember") {
+        setMembers(
+          members.indexOf(msg.user) === -1 ? [...members, msg.user] : members
+        );
+      } else if (action === "removeMember") {
+        setMembers(members.filter((member) => member !== msg.user));
+      }
+    },
+    [membersRef, setMembers]
+  );
   const handleSend = (message) => {
     socket.emit("chat", message);
   };
@@ -62,16 +88,36 @@ export default function Chat({ room }) {
     }
   };
   return (
-    <Box sx={{ maxWidth: "md", mx: "auto", a: { color: "black" } }}>
+    <Box
+      sx={{
+        maxWidth: "md",
+        mx: "auto",
+        a: { color: "black" },
+        ".cs-conversation-header__avatar": {
+          flexGrow: 1,
+        },
+      }}
+    >
       <LinearProgress
         sx={{ visibility: progress > 0 ? "visible" : "hidden" }}
         variant="determinate"
         value={progress}
       />
+
       <MainContainer style={{ height: "calc(100vh - 25px)" }}>
         <ChatContainer>
+          <ConversationHeader>
+            <AvatarGroup size="md">
+              {members.map((member) => (
+                <Avatar key={member} src={genAvatar(member)} />
+              ))}
+            </AvatarGroup>
+            <ConversationHeader.Actions>
+              <InfoButton />
+            </ConversationHeader.Actions>
+          </ConversationHeader>
           <MessageList>
-            {messages.map((msg) => (
+            {msgs.map((msg) => (
               <Message key={msg.id} model={msg}>
                 <Avatar src={msg.avatar} />
               </Message>
@@ -97,39 +143,16 @@ export default function Chat({ room }) {
 }
 
 function santizeMsg(msg) {
-  const { id, system, kind, sentAt } = msg;
-  let { message } = msg;
-  let avatar;
-  let direction = 0;
-  if (system) {
-    if (kind === "welcome") {
-      message = `Share current page url to invite members.`;
-    } else if (kind === "listMembers") {
-      message = `Current members: ` + msg.users.map(embedAvatar).join("");
-    } else if (kind === "addMember") {
-      message = embedAvatar(msg.user) + " enter room";
-    } else if (kind === "removeMember") {
-      message = embedAvatar(msg.user) + " quit room";
-    }
-    avatar = "/system.svg";
-  } else {
-    if (user === msg.user) direction = 1;
-    avatar = genAvatar(msg.user);
-  }
+  const { id, sentAt, message } = msg;
+  let direction = user === msg.user ? 1 : 0;
   return {
     id,
     sentAt,
     message,
-    avatar,
+    avatar: genAvatar(msg.user),
     direction,
     position: "single",
   };
-}
-
-function embedAvatar(user) {
-  return `<img style="width: 13px; margin-right: 4px;" src="${genAvatar(
-    user
-  )}" />`;
 }
 
 function genAvatar(user, size = 200) {
@@ -137,13 +160,4 @@ function genAvatar(user, size = 200) {
   avatarCache[user] =
     "data:image/svg+xml;base64," + btoa(jdenticon.toSvg(user, size));
   return avatarCache[user];
-}
-
-function getMsgDate(msg) {
-  const date = new Date(msg.sentAt * 1000);
-  let hh = date.getHours();
-  let mm = date.getMinutes();
-  if (hh < 10) hh = "0" + hh;
-  if (mm < 10) mm = "0" + mm;
-  return `${hh}:${mm}`;
 }

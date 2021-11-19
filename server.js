@@ -74,12 +74,12 @@ async function main() {
       socket.join(room);
       const chatroom = ensureChatroom(room);
       socket.data = { room, user };
-      socket.send(procMsg({ system: true, kind: "welcome" }));
+      chatroom.members.add(user);
       if (chatroom.members.size > 0) {
         socket.send(
           procMsg({
             system: true,
-            kind: "listMembers",
+            action: "listMembers",
             users: Array.from(chatroom.members),
           })
         );
@@ -87,12 +87,11 @@ async function main() {
           "message",
           procMsg({
             system: true,
-            kind: "addMember",
+            action: "addMember",
             user,
           })
         );
       }
-      chatroom.members.add(user);
     });
     socket.on("chat", (message) => {
       if (!socket.data) return;
@@ -108,7 +107,7 @@ async function main() {
           "message",
           procMsg({
             system: true,
-            kind: "removeMember",
+            action: "removeMember",
             user,
           })
         );

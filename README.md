@@ -1,6 +1,6 @@
 # SelfChat
 
-Anonymous chat in temporary room. Any message or file in current room will be purges in 30 minutes.
+Anonymous chat in temporary room.
 
 ## Docker
 
