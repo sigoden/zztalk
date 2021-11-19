@@ -51,7 +51,6 @@ export default function Chat({ room }) {
     (msg) => {
       const members = membersRef.current;
       const { action } = msg;
-      console.log(action, msg, members);
       if (action === "listMembers") {
         setMembers(msg.users);
       } else if (action === "addMember") {
