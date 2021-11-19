@@ -10,7 +10,7 @@ const serve = require("koa-static");
 const { customAlphabet } = require("nanoid");
 const next = require("next");
 
-const HOST = process.env.HOST || "localhost";
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const UPLOADS_DIR = path.resolve(__dirname, "uploads");
 
