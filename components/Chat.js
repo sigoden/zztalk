@@ -19,8 +19,18 @@ import {
 } from "@chatscope/chat-ui-kit-react";
 import { Remarkable, utils } from "remarkable";
 
+const USER = md5(navigator.userAgent).slice(0, 6);
+const FILE_MAX_SIZE = 512 * 1024 * 1024;
+const SYSTEM_MSGS = {
+  tips: `1. Share url to invite members.
+2. If all members quit, the room will be destroyed.
+3. All files will be deleted along with the room.
+4. Maximum upload file size is 512M.
+`,
+  fileSizeExceed: `Upload file size exceeded 512M.`,
+};
+
 const markd = new Remarkable();
-const user = md5(navigator.userAgent).slice(0, 6);
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
@@ -34,7 +44,7 @@ export default function Chat({ room }) {
     });
     setSocket(socket);
     socket.on("connect", () => {
-      socket.emit("enter", { room, user });
+      socket.emit("enter", { room, user: USER });
     });
     socket.on("message", handleMsg);
     return () => socket.disconnect();
@@ -60,7 +70,7 @@ export default function Chat({ room }) {
           html: markd.render(msg.message),
           position: "single",
           avatar: getAvatar(msg.user),
-          direction: msg.user === user ? 1 : 0,
+          direction: msg.user === USER ? 1 : 0,
         };
         if (msgs.length > 0) {
           const prevMsg = msgs[msgs.length - 1];
@@ -80,15 +90,8 @@ export default function Chat({ room }) {
     },
     [membersRef, setMembers, msgsRef, setMsgs]
   );
-  const systemMsg = (kind) => {
-    if (kind === "tips") {
-      const message = `
-1. Share url to invite members.
-2. If all members quit, the room will be destroyed.
-3. All files will be deleted along with the room.
-`;
-      handleMsg({ id: Date.now(), user: "system", message });
-    }
+  const systemMsg = (message) => {
+    handleMsg({ id: Date.now(), user: "system", message });
   };
   const handleSend = (message) => {
     socket.emit("chat", message);
@@ -97,6 +100,10 @@ export default function Chat({ room }) {
     if (fileRef.current) fileRef.current.click();
   };
   const handleUpload = async (file) => {
+    if (file.size > FILE_MAX_SIZE) {
+      systemMsg(SYSTEM_MSGS.fileSizeExceed);
+      return;
+    }
     const formData = new FormData();
     formData.append("room", room);
     formData.append("file", file);
@@ -156,7 +163,7 @@ export default function Chat({ room }) {
               ))}
             </AvatarGroup>
             <ConversationHeader.Actions>
-              <InfoButton onClick={() => systemMsg("tips")} />
+              <InfoButton onClick={() => systemMsg(SYSTEM_MSGS.tips)} />
             </ConversationHeader.Actions>
           </ConversationHeader>
           <MessageList style={{ paddingTop: "4px" }}>
@@ -200,13 +207,14 @@ function getAvatar(user, size = 200) {
 }
 
 markd.renderer.rules.link_open = function (tokens, idx, options /* env */) {
-  console.log(utils);
-  var title = tokens[idx].title
+  const title = tokens[idx].title
     ? ' title="' +
       utils.escapeHtml(utils.replaceEntities(tokens[idx].title)) +
       '"'
     : "";
-  var target = options.linkTarget ? ' target="' + options.linkTarget + '"' : "";
+  const target = options.linkTarget
+    ? ' target="' + options.linkTarget + '"'
+    : "";
   return (
     '<a target="_blank" href="' +
     utils.escapeHtml(tokens[idx].href) +

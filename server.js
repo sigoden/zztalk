@@ -13,11 +13,16 @@ const next = require("next");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const UPLOADS_DIR = path.resolve(__dirname, "uploads");
+const FILE_MAX_SIZE = 512 * 1024 * 1024;
 
 const dev = process.env.NODE_ENV !== "production";
 const nextApp = next({ dev });
 const handle = nextApp.getRequestHandler();
-const upload = multer();
+const upload = multer({
+  limits: {
+    fileSize: FILE_MAX_SIZE,
+  },
+});
 const chatrooms = {};
 const nanoid = customAlphabet("123456789abcdefghijklmnopqrstuvwxyz", 6);
 
