@@ -25,7 +25,7 @@ const avatarCache = {};
 
 export default function Chat({ room }) {
   const [socket, setSocket] = useState(null);
-  const [msgs, setMsgs] = useState([]);
+  const [msgs, setMsgs, msgsRef] = useStateRef([]);
   const [members, setMembers, membersRef] = useStateRef([]);
   const [showHelp, setShowHelp] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -39,29 +39,54 @@ export default function Chat({ room }) {
       socket.emit("enter", { room, user });
     });
     socket.on("message", (msg) => {
-      if (msg.action) {
-        handleActionMsg(msg);
-      } else {
-        setMsgs((msgs) => [...msgs, santizeMsg(msg)]);
-      }
+      handleMsg(msg);
     });
     return () => socket.disconnect();
-  }, [room, handleActionMsg]);
-  const handleActionMsg = useCallback(
+  }, [room, handleMsg]);
+  const handleMsg = useCallback(
     (msg) => {
-      const members = membersRef.current;
-      const { action } = msg;
-      if (action === "listMembers") {
-        setMembers(msg.users);
-      } else if (action === "addMember") {
-        setMembers(
-          members.indexOf(msg.user) === -1 ? [...members, msg.user] : members
-        );
-      } else if (action === "removeMember") {
-        setMembers(members.filter((member) => member !== msg.user));
+      if (msg.action) {
+        const members = membersRef.current;
+        const { action } = msg;
+        if (action === "listMembers") {
+          setMembers(msg.users);
+        } else if (action === "addMember") {
+          setMembers(
+            members.indexOf(msg.user) === -1 ? [...members, msg.user] : members
+          );
+        } else if (action === "removeMember") {
+          setMembers(members.filter((member) => member !== msg.user));
+        }
+      } else {
+        let msgs = msgsRef.current;
+        const newMsg = {
+          id: msg.id,
+          message: msg.message,
+          sender: msg.user,
+          position: "single",
+          avatar: null,
+          direction: msg.user === user ? 1 : 0,
+        };
+        if (msgs.length > 0) {
+          const prevMsg = msgs[msgs.length - 1];
+          if (prevMsg.sender === newMsg.sender) {
+            if (prevMsg.position === "single") {
+              prevMsg.position = "first";
+            } else if (prevMsg.position === "last") {
+              prevMsg.position = "normal";
+            }
+            newMsg.position = "last";
+          } else {
+            newMsg.avatar = genAvatar(msg.user);
+          }
+        } else {
+          newMsg.avatar = genAvatar(msg.user);
+        }
+        msgs = [...msgs, newMsg];
+        setMsgs(msgs);
       }
     },
-    [membersRef, setMembers]
+    [membersRef, setMembers, msgsRef, setMsgs]
   );
   const handleSend = (message) => {
     socket.emit("chat", message);
@@ -118,10 +143,10 @@ export default function Chat({ room }) {
               <InfoButton onClick={() => setShowHelp(true)} />
             </ConversationHeader.Actions>
           </ConversationHeader>
-          <MessageList>
+          <MessageList style={{ paddingTop: "4px" }}>
             {msgs.map((msg) => (
-              <Message key={msg.id} model={msg}>
-                <Avatar src={msg.avatar} />
+              <Message key={msg.id} model={msg} avatarSpacer={!msg.avatar}>
+                {msg.avatar && <Avatar src={msg.avatar} />}
               </Message>
             ))}
           </MessageList>
@@ -177,19 +202,6 @@ export default function Chat({ room }) {
       </Modal>
     </Box>
   );
-}
-
-function santizeMsg(msg) {
-  const { id, sentAt, message } = msg;
-  let direction = user === msg.user ? 1 : 0;
-  return {
-    id,
-    sentAt,
-    message,
-    avatar: genAvatar(msg.user),
-    direction,
-    position: "single",
-  };
 }
 
 function genAvatar(user, size = 200) {
