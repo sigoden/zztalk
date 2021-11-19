@@ -119,9 +119,19 @@ export default function Chat({ room }) {
       sx={{
         maxWidth: "md",
         mx: "auto",
-        a: { color: "black" },
+        a: {
+          color: "#0269c8",
+          borderBottom: "1px solid #d1e9ff",
+          textDecoration: "none",
+        },
         ".cs-conversation-header__avatar": {
           flexGrow: 1,
+        },
+        ".cs-message-list": {
+          background: "#f1f3f4",
+        },
+        ".cs-message__content": {
+          background: "white !important",
         },
       }}
     >
